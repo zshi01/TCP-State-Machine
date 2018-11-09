@@ -11,7 +11,15 @@ class StudentSocketImpl extends BaseSocketImpl {
 
   private Demultiplexer D;
   private Timer tcpTimer;
+  private int windowSize = 20;
 
+  private State tcpState = State.CLOSED;
+  private int seqNum;
+  private int ackNum;
+
+  private enum State {
+    CLOSED,SYN_SENT,LISTEN,SYN_RCVD,ESTABLISHED,FIN_WAIT_1,FIN_WAIT_2,CLOSE_WAIT,LAST_ACK,CLOSING,TIME_WAIT;
+  }
 
   StudentSocketImpl(Demultiplexer D) {  // default constructor
     this.D = D;
@@ -26,11 +34,16 @@ class StudentSocketImpl extends BaseSocketImpl {
    *               connection.
    */
   public synchronized void connect(InetAddress address, int port) throws IOException{
+    seqNum = 700;
+    ackNum = 100;
     localport = D.getNextAvailablePort();
+
     D.registerConnection(address,localport,port,this);
-    TCPPacket synPkt = new TCPPacket(localport, port,0 ,0 ,false , true, false, 1, null);
+    TCPPacket synPkt = new TCPPacket(localport, port,seqNum ,ackNum ,false , true, false, windowSize, null);
     TCPWrapper.send(synPkt, address);
     System.out.println(synPkt.getDebugOutput());
+
+    tcpState = switchState(State.SYN_SENT);
   }
 
   /**
@@ -38,8 +51,30 @@ class StudentSocketImpl extends BaseSocketImpl {
    * @param p The packet that arrived
    */
   public synchronized void receivePacket(TCPPacket p){
-      System.out.println(p.toString());
-      System.out.println(p.getDebugOutput());
+    System.out.println("Receive Packet    State: "+tcpState);
+    System.out.println(p.toString());
+    System.out.println(p.getDebugOutput());
+    switch (tcpState){
+      case LISTEN:
+        if (p.synFlag && !p.ackFlag){
+          seqNum = p.ackNum;
+          ackNum = p.seqNum + 1;
+          TCPPacket synAckPkt = new TCPPacket(localport, port,seqNum ,ackNum ,true , true, false, 1, null);
+          TCPWrapper.send(synAckPkt, address);
+
+          try {
+            D.unregisterListeningSocket(localport, this);
+            D.registerConnection(address, localport, port, this);
+          } catch (IOException e) {
+            e.printStackTrace();
+          }
+        }
+        this.notifyAll();
+        break;
+
+        default:
+          break;
+    }
   }
 
   /**
@@ -50,7 +85,7 @@ class StudentSocketImpl extends BaseSocketImpl {
    * Note that localport is already set prior to this being called.
    */
   public synchronized void acceptConnection() throws IOException {
-      D.registerListeningSocket(this.localport, this);
+      D.registerListeningSocket(localport, this);
       System.out.println("Accept Connection");
   }
 
@@ -117,5 +152,12 @@ class StudentSocketImpl extends BaseSocketImpl {
     // this must run only once the last timer (30 second timer) has expired
     tcpTimer.cancel();
     tcpTimer = null;
+  }
+
+  private State switchState(State newState){
+    System.out.println("State Change from "+tcpState+" to "+newState);
+    tcpState = newState;
+
+    return newState;
   }
 }
