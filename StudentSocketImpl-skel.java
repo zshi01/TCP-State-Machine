@@ -45,6 +45,14 @@ class StudentSocketImpl extends BaseSocketImpl {
     System.out.println(synPacket.getDebugOutput());
 
     switchState(State.SYN_SENT);
+
+    while (tcpState != State.ESTABLISHED){
+      try {
+        wait();
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
+    }
   }
 
   /**
@@ -112,6 +120,14 @@ class StudentSocketImpl extends BaseSocketImpl {
     D.registerListeningSocket(localport, this);
     System.out.println("Accept Connection");
     switchState(State.LISTEN);
+
+    while (tcpState != State.ESTABLISHED && tcpState != State.SYN_RCVD){
+      try {
+        wait();
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
+    }
   }
 
 
