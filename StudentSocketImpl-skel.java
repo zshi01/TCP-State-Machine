@@ -76,7 +76,7 @@ class StudentSocketImpl extends BaseSocketImpl {
         if (p.synFlag && !p.ackFlag){
           seqNum = 200;
 //          ackNum = p.seqNum + 1;
-          TCPPacket synAckPkt = new TCPPacket(localport, port,seqNum ,ackNum ,true , true, false, 1, null);
+          TCPPacket synAckPkt = new TCPPacket(localport, port,seqNum ,ackNum ,true , true, false, windowSize, null);
           TCPWrapper.send(synAckPkt, address);
 
           try {
@@ -91,7 +91,7 @@ class StudentSocketImpl extends BaseSocketImpl {
 
       case SYN_SENT:
         if (p.synFlag && p.ackFlag){
-          TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, 1, null);
+          TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
           TCPWrapper.send(ackPkt, address);
           switchState(State.ESTABLISHED);
         }
