@@ -60,12 +60,14 @@ class StudentSocketImpl extends BaseSocketImpl {
 
     address = p.sourceAddr;
     port = p.sourcePort;
+    seqNum = p.ackNum;
+    ackNum = p.seqNum + 1;
 
     switch (tcpState){
       case LISTEN:
         if (p.synFlag && !p.ackFlag){
-          seqNum = p.ackNum;
-          ackNum = p.seqNum + 1;
+          seqNum = 200;
+//          ackNum = p.seqNum + 1;
           TCPPacket synAckPkt = new TCPPacket(localport, port,seqNum ,ackNum ,true , true, false, 1, null);
           TCPWrapper.send(synAckPkt, address);
 
@@ -78,6 +80,19 @@ class StudentSocketImpl extends BaseSocketImpl {
           switchState(State.SYN_RCVD);
         }
         break;
+
+      case SYN_SENT:
+        if (p.synFlag && p.ackFlag){
+          TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, 1, null);
+          TCPWrapper.send(ackPkt, address);
+          switchState(State.ESTABLISHED);
+        }
+        break;
+
+      case SYN_RCVD:
+        if (p.ackFlag){
+          switchState(State.ESTABLISHED);
+        }
 
 
         default:
