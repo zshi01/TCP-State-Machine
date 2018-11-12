@@ -110,9 +110,38 @@ class StudentSocketImpl extends BaseSocketImpl {
         }
         break;
 
+      case FIN_WAIT_1:
+        if (p.finFlag){
+          TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
+          TCPWrapper.send(ackPkt, address);
+          switchState(State.CLOSING);
+        }
 
-        default:
-          break;
+        if (p.ackFlag){
+          switchState(State.FIN_WAIT_2);
+        }
+        break;
+
+      case CLOSING:
+        if (p.ackFlag){
+          switchState(State.TIME_WAIT);
+        }
+        break;
+
+      case FIN_WAIT_2:
+        if (p.finFlag){
+          TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
+          TCPWrapper.send(ackPkt, address);
+          switchState(State.TIME_WAIT);
+        break;
+
+      case LAST_ACK:
+          switchState(State.TIME_WAIT);
+        }
+        break;
+
+      default:
+        break;
 
     }
   }
