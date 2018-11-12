@@ -101,6 +101,7 @@ class StudentSocketImpl extends BaseSocketImpl {
         if (p.ackFlag){
           switchState(State.ESTABLISHED);
         }
+        break;
 
       case ESTABLISHED:
         if (p.finFlag){
@@ -133,9 +134,11 @@ class StudentSocketImpl extends BaseSocketImpl {
           TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
           TCPWrapper.send(ackPkt, address);
           switchState(State.TIME_WAIT);
+        }
         break;
 
       case LAST_ACK:
+        if (p.ackFlag){
           switchState(State.TIME_WAIT);
         }
         break;
