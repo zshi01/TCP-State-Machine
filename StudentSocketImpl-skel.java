@@ -102,6 +102,14 @@ class StudentSocketImpl extends BaseSocketImpl {
           switchState(State.ESTABLISHED);
         }
 
+      case ESTABLISHED:
+        if (p.finFlag){
+          TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
+          TCPWrapper.send(ackPkt, address);
+          switchState(State.CLOSE_WAIT);
+        }
+        break;
+
 
         default:
           break;
