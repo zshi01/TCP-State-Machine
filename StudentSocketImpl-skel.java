@@ -17,7 +17,7 @@ class StudentSocketImpl extends BaseSocketImpl {
   private int seqNum;
   private int ackNum;
 
-  private enum State {
+  public enum State {
     CLOSED,SYN_SENT,LISTEN,SYN_RCVD,ESTABLISHED,FIN_WAIT_1,FIN_WAIT_2,CLOSE_WAIT,LAST_ACK,CLOSING,TIME_WAIT;
   }
 
@@ -218,7 +218,14 @@ class StudentSocketImpl extends BaseSocketImpl {
       tcpState = State.LAST_ACK;
     }
 
-
+    try {
+      backgroundThread newThread = new backgroundThread(this);
+      newThread.run();
+    }
+    catch( Exception e){
+      e.printStackTrace();
+    }
+    return;
   }
 
   /**
@@ -248,5 +255,27 @@ class StudentSocketImpl extends BaseSocketImpl {
   private void switchState(State newState){
     System.out.println("!!! "+tcpState+"->"+newState);
     tcpState = newState;
+  }
+
+  public State getTcpState() {
+    return tcpState;
+  }
+}
+
+class backgroundThread implements Runnable{
+  public StudentSocketImpl waitingToClose;
+  public backgroundThread(StudentSocketImpl s) throws InterruptedException{
+    waitingToClose = s;
+  }
+
+  @Override
+  public void run(){
+    while(waitingToClose.getTcpState()!= StudentSocketImpl.State.CLOSED){
+      try{
+        wait();
+      }catch(Exception e){
+        e.printStackTrace();
+      }
+    }
   }
 }
