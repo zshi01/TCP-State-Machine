@@ -272,7 +272,7 @@ class backgroundThread implements Runnable{
   public void run(){
     while(waitingToClose.getTcpState()!= StudentSocketImpl.State.CLOSED){
       try{
-        wait();
+        waitingToClose.wait();
       }catch(Exception e){
         e.printStackTrace();
       }
