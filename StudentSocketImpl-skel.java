@@ -209,6 +209,16 @@ class StudentSocketImpl extends BaseSocketImpl {
    * @exception  IOException  if an I/O error occurs when closing this socket.
    */
   public synchronized void close() throws IOException {
+    TCPPacket finPkt = new TCPPacket(localport, port,ackNum ,seqNum ,false , false, true, windowSize, null);
+    TCPWrapper.send(finPkt, address);
+
+    if (tcpState == State.ESTABLISHED){
+      tcpState = State.FIN_WAIT_1;
+    } else if (tcpState == State.CLOSE_WAIT){
+      tcpState = State.LAST_ACK;
+    }
+
+
   }
 
   /**
