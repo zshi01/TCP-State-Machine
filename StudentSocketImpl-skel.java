@@ -213,9 +213,9 @@ class StudentSocketImpl extends BaseSocketImpl {
     TCPWrapper.send(finPkt, address);
 
     if (tcpState == State.ESTABLISHED){
-      tcpState = State.FIN_WAIT_1;
+      switchState(State.FIN_WAIT_1);
     } else if (tcpState == State.CLOSE_WAIT){
-      tcpState = State.LAST_ACK;
+      switchState(State.LAST_ACK);
     }
 
     try {
