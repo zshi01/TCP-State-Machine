@@ -16,6 +16,7 @@ class StudentSocketImpl extends BaseSocketImpl {
   private State tcpState;
   private int seqNum;
   private int ackNum;
+  private TCPPacket lastPacket;
 
   public enum State {
     CLOSED,SYN_SENT,LISTEN,SYN_RCVD,ESTABLISHED,FIN_WAIT_1,FIN_WAIT_2,CLOSE_WAIT,LAST_ACK,CLOSING,TIME_WAIT;
@@ -38,10 +39,11 @@ class StudentSocketImpl extends BaseSocketImpl {
     seqNum = 1000;
     ackNum = 100;
     localport = D.getNextAvailablePort();
+    this.address = address;
 
     D.registerConnection(address,localport,port,this);
     TCPPacket synPacket = new TCPPacket(localport, port,seqNum ,ackNum ,false , true, false, windowSize, null);
-    TCPWrapper.send(synPacket, address);
+    sendPacketWrapper(synPacket);
     System.out.println(synPacket.getDebugOutput());
 
     switchState(State.SYN_SENT);
@@ -75,9 +77,10 @@ class StudentSocketImpl extends BaseSocketImpl {
       case LISTEN:
         if (p.synFlag && !p.ackFlag){
           seqNum = 200;
-//          ackNum = p.seqNum + 1;
+          switchState(State.SYN_RCVD);
+
           TCPPacket synAckPkt = new TCPPacket(localport, port,seqNum ,ackNum ,true , true, false, windowSize, null);
-          TCPWrapper.send(synAckPkt, address);
+          sendPacketWrapper(synAckPkt);
 
           try {
             D.unregisterListeningSocket(localport, this);
@@ -85,15 +88,16 @@ class StudentSocketImpl extends BaseSocketImpl {
           } catch (IOException e) {
             e.printStackTrace();
           }
-          switchState(State.SYN_RCVD);
+
         }
         break;
 
       case SYN_SENT:
         if (p.synFlag && p.ackFlag){
-          TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
-          TCPWrapper.send(ackPkt, address);
           switchState(State.ESTABLISHED);
+          TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
+          sendPacketWrapper(ackPkt);
+
         }
         break;
 
@@ -105,17 +109,17 @@ class StudentSocketImpl extends BaseSocketImpl {
 
       case ESTABLISHED:
         if (p.finFlag){
-          TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
-          TCPWrapper.send(ackPkt, address);
           switchState(State.CLOSE_WAIT);
+          TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
+          sendPacketWrapper(ackPkt);
         }
         break;
 
       case FIN_WAIT_1:
         if (p.finFlag){
-          TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
-          TCPWrapper.send(ackPkt, address);
           switchState(State.CLOSING);
+          TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
+          sendPacketWrapper(ackPkt);
         }
 
         if (p.ackFlag){
@@ -131,9 +135,10 @@ class StudentSocketImpl extends BaseSocketImpl {
 
       case FIN_WAIT_2:
         if (p.finFlag){
-          TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
-          TCPWrapper.send(ackPkt, address);
           switchState(State.TIME_WAIT);
+          TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
+          sendPacketWrapper(ackPkt);
+
         }
         break;
 
@@ -209,14 +214,16 @@ class StudentSocketImpl extends BaseSocketImpl {
    * @exception  IOException  if an I/O error occurs when closing this socket.
    */
   public synchronized void close() throws IOException {
-    TCPPacket finPkt = new TCPPacket(localport, port,ackNum ,seqNum ,false , false, true, windowSize, null);
-    TCPWrapper.send(finPkt, address);
-
     if (tcpState == State.ESTABLISHED){
       switchState(State.FIN_WAIT_1);
     } else if (tcpState == State.CLOSE_WAIT){
       switchState(State.LAST_ACK);
     }
+
+    TCPPacket finPkt = new TCPPacket(localport, port,ackNum ,seqNum ,false , false, true, windowSize, null);
+    sendPacketWrapper(finPkt);
+
+
 
     try {
       backgroundThread newThread = new backgroundThread(this);
@@ -250,6 +257,15 @@ class StudentSocketImpl extends BaseSocketImpl {
     // this must run only once the last timer (30 second timer) has expired
     tcpTimer.cancel();
     tcpTimer = null;
+  }
+
+  public void sendPacketWrapper(TCPPacket p){
+    if(p.synFlag || p.finFlag){
+      createTimerTask(2500,null);
+      System.out.println("create timer!!!!");
+    }
+    lastPacket = p;
+    TCPWrapper.send(p, address);
   }
 
   private void switchState(State newState){
