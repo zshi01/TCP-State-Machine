@@ -105,12 +105,17 @@ class StudentSocketImpl extends BaseSocketImpl {
         if (p.ackFlag){
           cancelTimer();
           switchState(State.ESTABLISHED);
+        } else if (p.synFlag){
+          sendPacketWrapper(lastPacket);
         }
         break;
 
       case ESTABLISHED:
         if (p.finFlag){
           switchState(State.CLOSE_WAIT);
+          TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
+          sendPacketWrapper(ackPkt);
+        } else if (p.synFlag && p.ackFlag){
           TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
           sendPacketWrapper(ackPkt);
         }
