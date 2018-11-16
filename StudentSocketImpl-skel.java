@@ -129,9 +129,13 @@ class StudentSocketImpl extends BaseSocketImpl {
         }
 
         if (p.ackFlag){
-          cancelTimer();
-          switchState(State.FIN_WAIT_2);
-
+          if (p.synFlag){
+            TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
+            sendPacketWrapper(ackPkt);
+          } else{
+            cancelTimer();
+            switchState(State.FIN_WAIT_2);
+          }
         }
         break;
 
@@ -140,6 +144,9 @@ class StudentSocketImpl extends BaseSocketImpl {
           cancelTimer();
           switchState(State.TIME_WAIT);
           createTimerTask(30 * 1000, null);
+        } else if (p.finFlag){
+          TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
+          sendPacketWrapper(ackPkt);
         }
         break;
 
@@ -153,11 +160,20 @@ class StudentSocketImpl extends BaseSocketImpl {
         }
         break;
 
+      case CLOSE_WAIT:
+        if (p.finFlag){
+          TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
+          sendPacketWrapper(ackPkt);
+        }
+
       case LAST_ACK:
         if (p.ackFlag){
           cancelTimer();
           switchState(State.TIME_WAIT);
           createTimerTask(30 * 1000, null);
+        } else if (p.finFlag){
+          TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
+          sendPacketWrapper(ackPkt);
         }
         break;
 
