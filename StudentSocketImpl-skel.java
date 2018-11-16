@@ -134,6 +134,7 @@ class StudentSocketImpl extends BaseSocketImpl {
         if (p.ackFlag){
           cancelTimer();
           switchState(State.TIME_WAIT);
+          createTimerTask(30 * 1000, null);
         }
         break;
 
@@ -142,6 +143,7 @@ class StudentSocketImpl extends BaseSocketImpl {
           switchState(State.TIME_WAIT);
           TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
           sendPacketWrapper(ackPkt);
+          createTimerTask(30 * 1000, null);
 
         }
         break;
@@ -150,6 +152,7 @@ class StudentSocketImpl extends BaseSocketImpl {
         if (p.ackFlag){
           cancelTimer();
           switchState(State.TIME_WAIT);
+          createTimerTask(30 * 1000, null);
         }
         break;
 
@@ -264,14 +267,12 @@ class StudentSocketImpl extends BaseSocketImpl {
 
     if (tcpState == State.TIME_WAIT){
       switchState(State.CLOSED);
-
+      notifyAll();
       try {
         D.unregisterConnection(address, localport, port, this);
       } catch (IOException e) {
         e.printStackTrace();
       }
-
-      this.notifyAll();
     } else {
       sendPacketWrapper(lastPacket);
     }
@@ -285,10 +286,10 @@ class StudentSocketImpl extends BaseSocketImpl {
 
   public void sendPacketWrapper(TCPPacket p){
     if(p.synFlag || p.finFlag){
+      lastPacket = p;
       createTimerTask(2500,null);
       System.out.println("create timer!!!!");
     }
-    lastPacket = p;
     TCPWrapper.send(p, address);
   }
 
