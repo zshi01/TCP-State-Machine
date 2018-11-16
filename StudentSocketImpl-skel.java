@@ -94,15 +94,16 @@ class StudentSocketImpl extends BaseSocketImpl {
 
       case SYN_SENT:
         if (p.synFlag && p.ackFlag){
+          cancelTimer();
           switchState(State.ESTABLISHED);
           TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
           sendPacketWrapper(ackPkt);
-
         }
         break;
 
       case SYN_RCVD:
         if (p.ackFlag){
+          cancelTimer();
           switchState(State.ESTABLISHED);
         }
         break;
@@ -123,12 +124,15 @@ class StudentSocketImpl extends BaseSocketImpl {
         }
 
         if (p.ackFlag){
+          cancelTimer();
           switchState(State.FIN_WAIT_2);
+
         }
         break;
 
       case CLOSING:
         if (p.ackFlag){
+          cancelTimer();
           switchState(State.TIME_WAIT);
         }
         break;
@@ -144,6 +148,7 @@ class StudentSocketImpl extends BaseSocketImpl {
 
       case LAST_ACK:
         if (p.ackFlag){
+          cancelTimer();
           switchState(State.TIME_WAIT);
         }
         break;
@@ -253,10 +258,29 @@ class StudentSocketImpl extends BaseSocketImpl {
    * information.
    */
   public synchronized void handleTimer(Object ref){
-
     // this must run only once the last timer (30 second timer) has expired
     tcpTimer.cancel();
     tcpTimer = null;
+
+    if (tcpState == State.TIME_WAIT){
+      switchState(State.CLOSED);
+
+      try {
+        D.unregisterConnection(address, localport, port, this);
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+
+      this.notifyAll();
+    } else {
+      sendPacketWrapper(lastPacket);
+    }
+  }
+
+  private synchronized void cancelTimer(){
+    tcpTimer.cancel();
+    tcpTimer = null;
+    System.out.println("!!! cancel timer");
   }
 
   public void sendPacketWrapper(TCPPacket p){
