@@ -74,13 +74,14 @@ class StudentSocketImpl extends BaseSocketImpl {
 
     address = p.sourceAddr;
     port = p.sourcePort;
-    seqNum = p.ackNum;
-    ackNum = p.seqNum + 1;
+    if (p.ackFlag && !p.synFlag) {
+      seqNum = p.ackNum;
+      ackNum = p.seqNum + 1;
+    }
 
     switch (tcpState){
       case LISTEN:
         if (p.synFlag && !p.ackFlag){
-          seqNum = 200;
           switchState(State.SYN_RCVD);
 
           TCPPacket synAckPkt = new TCPPacket(localport, port,seqNum ,ackNum ,true , true, false, windowSize, null);
@@ -207,7 +208,7 @@ class StudentSocketImpl extends BaseSocketImpl {
     System.out.println("Accept Connection");
     switchState(State.LISTEN);
 
-    while (tcpState != State.ESTABLISHED){
+    while (tcpState != State.ESTABLISHED && tcpState != State.SYN_RCVD){
       try {
         wait();
       } catch (InterruptedException e) {
@@ -255,7 +256,7 @@ class StudentSocketImpl extends BaseSocketImpl {
    * @exception  IOException  if an I/O error occurs when closing this socket.
    */
   public synchronized void close() throws IOException {
-    if (tcpState == State.ESTABLISHED){
+    if (tcpState == State.ESTABLISHED || tcpState == State.SYN_RCVD){
       switchState(State.FIN_WAIT_1);
     } else if (tcpState == State.CLOSE_WAIT){
       switchState(State.LAST_ACK);
