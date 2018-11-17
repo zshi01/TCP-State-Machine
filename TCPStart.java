@@ -75,7 +75,7 @@ class TCPStart {
     long seed = System.currentTimeMillis();
 //    seed = 1542485309542L;
     System.out.println("Seed:"+seed);
-    TCPWrapper.dropRandomPackets(seed,0.8);
+    TCPWrapper.dropRandomPackets(seed,0.5);
 
 
   }

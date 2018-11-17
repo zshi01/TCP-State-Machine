@@ -20,7 +20,6 @@ class StudentSocketImpl extends BaseSocketImpl {
   private TCPPacket lastPacket;
 
   private State saveState;
-  Hashtable timerTable = new Hashtable();
 
   public enum State {
     CLOSED,SYN_SENT,LISTEN,SYN_RCVD,ESTABLISHED,FIN_WAIT_1,FIN_WAIT_2,CLOSE_WAIT,LAST_ACK,CLOSING,TIME_WAIT;
@@ -50,7 +49,8 @@ class StudentSocketImpl extends BaseSocketImpl {
     D.registerConnection(address,localport,port,this);
     TCPPacket synPacket = new TCPPacket(localport, port,seqNum ,ackNum ,false , true, false, windowSize, null);
     sendPacketWrapper(synPacket);
-    System.out.println(synPacket.getDebugOutput());
+    System.out.println(synPacket.toString());
+//    System.out.println(synPacket.getDebugOutput());
 
     while (tcpState != State.ESTABLISHED){
       try {
@@ -208,7 +208,7 @@ class StudentSocketImpl extends BaseSocketImpl {
     System.out.println("Accept Connection");
     switchState(State.LISTEN);
 
-    while (tcpState != State.ESTABLISHED && tcpState != State.SYN_RCVD){
+    while (tcpState != State.ESTABLISHED){
       try {
         wait();
       } catch (InterruptedException e) {
@@ -256,7 +256,7 @@ class StudentSocketImpl extends BaseSocketImpl {
    * @exception  IOException  if an I/O error occurs when closing this socket.
    */
   public synchronized void close() throws IOException {
-    if (tcpState == State.ESTABLISHED || tcpState == State.SYN_RCVD){
+    if (tcpState == State.ESTABLISHED){
       switchState(State.FIN_WAIT_1);
     } else if (tcpState == State.CLOSE_WAIT){
       switchState(State.LAST_ACK);
@@ -282,8 +282,10 @@ class StudentSocketImpl extends BaseSocketImpl {
    */
   private TCPTimerTask createTimerTask(long delay, Object ref){
     saveState = tcpState;
-    if(tcpTimer == null)
+    if(tcpTimer == null) {
       tcpTimer = new Timer(false);
+      System.out.println("create new timer!");
+    }
     return new TCPTimerTask(tcpTimer, delay, this, ref);
   }
 
@@ -316,16 +318,15 @@ class StudentSocketImpl extends BaseSocketImpl {
   private synchronized void cancelTimer(){
     tcpTimer.cancel();
     tcpTimer = null;
-    System.out.println("!!! cancel timer");
+//    System.out.println("!!! cancel timer");
   }
 
   public void sendPacketWrapper(TCPPacket p){
     if(p.synFlag || p.finFlag){
       lastPacket = p;
       createTimerTask(2500,null);
-      System.out.println("create timer!!!!");
     }
-    System.out.println("=============================================================="+ System.currentTimeMillis()+p.toString());
+//    System.out.println("=============================================================="+ System.currentTimeMillis()+p.toString());
     TCPWrapper.send(p, address);
   }
 
