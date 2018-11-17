@@ -72,7 +72,10 @@ class TCPStart {
 //	(System.currentTimeMillis(),
 //	 Double.parseDouble(System.getProperty(LOSSRATERESOURCE)));
 //    }
-    TCPWrapper.dropRandomPackets(System.currentTimeMillis(),0.0);
+    long seed = System.currentTimeMillis();
+//    seed = 1542485309542L;
+    System.out.println("Seed:"+seed);
+    TCPWrapper.dropRandomPackets(seed,0.5);
 
 
   }

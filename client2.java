@@ -17,6 +17,7 @@ public class client2 {
       
       Thread.sleep(10*1000);
 
+      System.out.println("Client2 Closeeeeeeee!!!" + System.currentTimeMillis());
       sock.close();
     }
     catch(Exception e){

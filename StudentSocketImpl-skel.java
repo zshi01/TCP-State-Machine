@@ -1,5 +1,6 @@
 import java.net.*;
 import java.io.*;
+import java.util.Hashtable;
 import java.util.Timer;
 
 class StudentSocketImpl extends BaseSocketImpl {
@@ -17,6 +18,9 @@ class StudentSocketImpl extends BaseSocketImpl {
   private int seqNum;
   private int ackNum;
   private TCPPacket lastPacket;
+
+  private State saveState;
+  Hashtable timerTable = new Hashtable();
 
   public enum State {
     CLOSED,SYN_SENT,LISTEN,SYN_RCVD,ESTABLISHED,FIN_WAIT_1,FIN_WAIT_2,CLOSE_WAIT,LAST_ACK,CLOSING,TIME_WAIT;
@@ -41,12 +45,12 @@ class StudentSocketImpl extends BaseSocketImpl {
     localport = D.getNextAvailablePort();
     this.address = address;
 
+    switchState(State.SYN_SENT);
+
     D.registerConnection(address,localport,port,this);
     TCPPacket synPacket = new TCPPacket(localport, port,seqNum ,ackNum ,false , true, false, windowSize, null);
     sendPacketWrapper(synPacket);
     System.out.println(synPacket.getDebugOutput());
-
-    switchState(State.SYN_SENT);
 
     while (tcpState != State.ESTABLISHED){
       try {
@@ -63,8 +67,8 @@ class StudentSocketImpl extends BaseSocketImpl {
    */
   public synchronized void receivePacket(TCPPacket p){
     System.out.println("Receive Packet    State: "+tcpState);
-    System.out.println(p.toString());
-    System.out.println(p.getDebugOutput());
+//    System.out.println(p.toString());
+//    System.out.println(p.getDebugOutput());
 
     this.notifyAll();
 
@@ -165,6 +169,7 @@ class StudentSocketImpl extends BaseSocketImpl {
           TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
           sendPacketWrapper(ackPkt);
         }
+        break;
 
       case LAST_ACK:
         if (p.ackFlag){
@@ -172,6 +177,13 @@ class StudentSocketImpl extends BaseSocketImpl {
           switchState(State.TIME_WAIT);
           createTimerTask(30 * 1000, null);
         } else if (p.finFlag){
+          TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
+          sendPacketWrapper(ackPkt);
+        }
+        break;
+
+      case TIME_WAIT:
+        if (p.finFlag){
           TCPPacket ackPkt = new TCPPacket(localport, port,-2 ,ackNum ,true , false, false, windowSize, null);
           sendPacketWrapper(ackPkt);
         }
@@ -195,7 +207,7 @@ class StudentSocketImpl extends BaseSocketImpl {
     System.out.println("Accept Connection");
     switchState(State.LISTEN);
 
-    while (tcpState != State.ESTABLISHED && tcpState != State.SYN_RCVD){
+    while (tcpState != State.ESTABLISHED){
       try {
         wait();
       } catch (InterruptedException e) {
@@ -252,8 +264,6 @@ class StudentSocketImpl extends BaseSocketImpl {
     TCPPacket finPkt = new TCPPacket(localport, port,ackNum ,seqNum ,false , false, true, windowSize, null);
     sendPacketWrapper(finPkt);
 
-
-
     try {
       backgroundThread newThread = new backgroundThread(this);
       newThread.run();
@@ -270,6 +280,7 @@ class StudentSocketImpl extends BaseSocketImpl {
    * @param ref generic reference to be returned to handleTimer
    */
   private TCPTimerTask createTimerTask(long delay, Object ref){
+    saveState = tcpState;
     if(tcpTimer == null)
       tcpTimer = new Timer(false);
     return new TCPTimerTask(tcpTimer, delay, this, ref);
@@ -286,9 +297,11 @@ class StudentSocketImpl extends BaseSocketImpl {
     tcpTimer.cancel();
     tcpTimer = null;
 
+    System.out.println("Timer of "+ saveState +" Timeout!!!!");
+    saveState = null;
+
     if (tcpState == State.TIME_WAIT){
       switchState(State.CLOSED);
-      notifyAll();
       try {
         D.unregisterConnection(address, localport, port, this);
       } catch (IOException e) {
@@ -311,6 +324,7 @@ class StudentSocketImpl extends BaseSocketImpl {
       createTimerTask(2500,null);
       System.out.println("create timer!!!!");
     }
+    System.out.println("=============================================================="+ System.currentTimeMillis()+p.toString());
     TCPWrapper.send(p, address);
   }
 
